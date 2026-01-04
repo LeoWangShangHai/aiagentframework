@@ -9,9 +9,9 @@ venv/
 # Local secrets/config
 .env
 config/azure_openai.env
-uvicorn*.err
-uvicorn*.out
-token_usage.sqlite3
+logs/*.err
+logs/*.out
+data/token_usage.sqlite3
 
 # OS / editor
 .DS_Store

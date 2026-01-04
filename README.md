@@ -66,7 +66,7 @@ cd c:\pythonproject\testpython
 py -m pip install -r backend\requirements-agent.txt
 ```
 
-配置环境变量（示例见 [.env.example](.env.example)）：
+配置环境变量（示例见 [config/.env.example](config/.env.example)）：
 
 - `AZURE_OPENAI_ENDPOINT`
 - `AZURE_OPENAI_RESPONSES_DEPLOYMENT_NAME`

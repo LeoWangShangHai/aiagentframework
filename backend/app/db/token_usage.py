@@ -15,7 +15,7 @@ def _default_db_path() -> str:
 
     # backend/app/db/token_usage.py -> project root is parents[3]
     project_root = Path(__file__).resolve().parents[3]
-    return str(project_root / "token_usage.sqlite3")
+    return str(project_root / "data" / "token_usage.sqlite3")
 
 
 def _connect(db_path: str | None = None) -> sqlite3.Connection:
