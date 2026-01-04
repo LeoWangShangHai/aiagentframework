@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Chat</title>
+    <link rel="stylesheet" href="/static/styles.css?v=4" />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar" aria-label="menu">
+        <div class="sidebar__header">Chat</div>
+
+        <nav class="sidebar__nav" aria-label="chat menu">
+          <button id="menuChat" class="sidebar__item sidebar__item--active" type="button">对话</button>
+          <button id="menuStats" class="sidebar__item" type="button">统计</button>
+          <button id="menuEnv" class="sidebar__item" type="button">环境</button>
+        </nav>
+      </aside>
+
+      <main class="main" aria-label="content">
+        <div class="content">
+          <section id="viewChat" class="chat" aria-label="chat">
+            <div id="messages" class="messages" role="log" aria-live="polite"></div>
+
+            <form id="chatForm" class="composer" autocomplete="off">
+              <textarea
+                id="chatInput"
+                rows="2"
+                placeholder="输入消息，Enter 发送，Shift+Enter 换行"
+                aria-label="message"
+              ></textarea>
+              <button id="sendBtn" type="submit">发送</button>
+            </form>
+          </section>
+
+          <section id="viewStats" class="stats" aria-label="stats" hidden>
+            <div class="stats__title">Token Usage</div>
+            <div class="stats__row"><span class="stats__label">conversation_id</span><span id="statsConversationId" class="stats__value">-</span></div>
+
+            <div class="stats__history">
+              <div class="stats__subtitle">History</div>
+              <div id="statsHistory" class="stats__history-list"></div>
+              <div id="statsHistoryEmpty" class="stats__empty" hidden>No history yet.</div>
+              <div class="stats__pager stats__pager--history">
+                <button id="historyPrev" type="button">Prev</button>
+                <div id="historyPageInfo" class="stats__page-info">-</div>
+                <button id="historyNext" type="button">Next</button>
+              </div>
+            </div>
+
+            <div class="stats__list">
+              <div class="stats__list-header">
+                <span>turn</span>
+                <span>input</span>
+                <span>output</span>
+                <span>total</span>
+                <span>created</span>
+              </div>
+              <div id="statsList" class="stats__list-body"></div>
+              <div id="statsEmpty" class="stats__empty" hidden>No turns yet.</div>
+            </div>
+
+            <div class="stats__pager">
+              <button id="statsPrev" type="button">Prev</button>
+              <div id="statsPageInfo" class="stats__page-info">-</div>
+              <button id="statsNext" type="button">Next</button>
+            </div>
+          </section>
+
+          <section id="viewEnv" class="env" aria-label="environment" hidden>
+            <div class="env__title">环境信息</div>
+
+            <div class="env__subtitle">模型 / Azure</div>
+            <div class="env__row"><span class="env__label">deployment_name</span><span id="envDeployment" class="env__value">-</span></div>
+            <div class="env__row"><span class="env__label">api_version</span><span id="envApiVersion" class="env__value">-</span></div>
+            <div class="env__row"><span class="env__label">endpoint</span><span id="envEndpoint" class="env__value">-</span></div>
+            <div class="env__row"><span class="env__label">endpoint_host</span><span id="envEndpointHost" class="env__value">-</span></div>
+            <div class="env__row"><span class="env__label">auth_mode</span><span id="envAuthMode" class="env__value">-</span></div>
+            <div class="env__row"><span class="env__label">tenant_id</span><span id="envTenant" class="env__value">-</span></div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="/static/app.js?v=4" defer></script>
+  </body>
+</html>

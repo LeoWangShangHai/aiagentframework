@@ -1,0 +1,5 @@
+--pre
+agent-framework
+azure-identity>=1.17
+python-dotenv>=1.0
+tiktoken>=0.7
