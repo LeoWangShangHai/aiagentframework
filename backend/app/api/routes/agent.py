@@ -49,6 +49,7 @@ def agent_info() -> dict:
 
     endpoint = (os.getenv("AZURE_OPENAI_ENDPOINT") or "").strip()
     deployment_name = (os.getenv("AZURE_OPENAI_RESPONSES_DEPLOYMENT_NAME") or "").strip()
+    embedding_deployment = (os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME") or "").strip()
     api_version = (os.getenv("AZURE_OPENAI_API_VERSION") or "").strip()
     tenant_id = (os.getenv("AZURE_TENANT_ID") or "").strip()
 
@@ -65,6 +66,7 @@ def agent_info() -> dict:
 
     return {
         "deployment_name": deployment_name or None,
+        "embedding_deployment_name": embedding_deployment or None,
         "api_version": api_version or None,
         "endpoint": endpoint or None,
         "endpoint_host": endpoint_host or None,
@@ -95,6 +97,7 @@ def agent_usage(
     items = [
         {
             "turn_index": r.turn_index,
+            "model_name": r.model_name,
             "input_tokens": r.input_tokens,
             "output_tokens": r.output_tokens,
             "total_tokens": r.total_tokens,
@@ -216,6 +219,34 @@ def _extract_usage(obj) -> dict[str, int] | None:
     if total_tokens is not None:
         result["total_tokens"] = total_tokens
     return result
+
+
+def _extract_model_name(obj) -> str | None:
+    if obj is None:
+        return None
+
+    for attr in ("model", "model_name", "deployment", "deployment_name"):
+        value = getattr(obj, attr, None)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    if isinstance(obj, dict):
+        for key in ("model", "model_name", "deployment", "deployment_name"):
+            value = obj.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+    inner = getattr(obj, "response", None)
+    if inner is None and isinstance(obj, dict):
+        inner = obj.get("response")
+    if inner is not None:
+        return _extract_model_name(inner)
+
+    return None
+
+
+def _fallback_model_name() -> str | None:
+    return (os.getenv("AZURE_OPENAI_RESPONSES_DEPLOYMENT_NAME") or "").strip() or None
 
 
 _CJK_RE = re.compile(r"[\u4e00-\u9fff]")
@@ -427,10 +458,17 @@ async def run_agent(payload: AgentRunRequest) -> AgentRunResponse:
 
         output_text = _extract_text(result)
         usage = _extract_usage(result) or _compute_usage_from_texts(payload.message, output_text)
+        model_name = _extract_model_name(result) or _fallback_model_name()
         stats = _apply_usage(stats, usage)
 
         try:
-            await asyncio.to_thread(record_turn_usage, conversation_id, int(stats.get("turns", 0)), usage)
+            await asyncio.to_thread(
+                record_turn_usage,
+                conversation_id,
+                int(stats.get("turns", 0)),
+                usage,
+                model_name,
+            )
         except Exception:
             # Best-effort persistence; do not fail the request if DB is unavailable.
             pass
@@ -497,6 +535,7 @@ async def stream_agent(payload: AgentRunRequest):
 
             try:
                 last_usage: dict[str, int] | None = None
+                last_model_name: str | None = None
                 output_acc = ""
                 if hasattr(agent, "run_stream"):
                     async for update in agent.run_stream(payload.message, thread=thread):
@@ -508,6 +547,9 @@ async def stream_agent(payload: AgentRunRequest):
                         update_usage = _extract_usage(update)
                         if update_usage:
                             last_usage = update_usage
+                        update_model = _extract_model_name(update)
+                        if update_model:
+                            last_model_name = update_model
                 else:
                     result = await agent.run(payload.message, thread=thread)
                     output = _extract_text(result)
@@ -516,8 +558,10 @@ async def stream_agent(payload: AgentRunRequest):
                         yield _sse("delta", {"delta": output})
 
                     last_usage = _extract_usage(result)
+                    last_model_name = _extract_model_name(result)
 
                 usage = last_usage or _compute_usage_from_texts(payload.message, output_acc)
+                model_name = last_model_name or _fallback_model_name()
                 stats_updated = _apply_usage(stats, usage)
 
                 try:
@@ -526,6 +570,7 @@ async def stream_agent(payload: AgentRunRequest):
                         conversation_id,
                         int(stats_updated.get("turns", 0)),
                         usage,
+                        model_name,
                     )
                 except Exception:
                     # Best-effort persistence; do not break streaming if DB is unavailable.

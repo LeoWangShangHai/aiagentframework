@@ -4,9 +4,11 @@ const inputEl = document.getElementById('chatInput');
 const sendBtnEl = document.getElementById('sendBtn');
 
 const menuChatEl = document.getElementById('menuChat');
+const menuKnowledgeEl = document.getElementById('menuKnowledge');
 const menuStatsEl = document.getElementById('menuStats');
 const menuEnvEl = document.getElementById('menuEnv');
 const viewChatEl = document.getElementById('viewChat');
+const viewKnowledgeEl = document.getElementById('viewKnowledge');
 const viewStatsEl = document.getElementById('viewStats');
 const viewEnvEl = document.getElementById('viewEnv');
 
@@ -24,11 +26,25 @@ const historyNextEl = document.getElementById('historyNext');
 const historyPageInfoEl = document.getElementById('historyPageInfo');
 
 const envDeploymentEl = document.getElementById('envDeployment');
+const envEmbeddingEl = document.getElementById('envEmbedding');
 const envApiVersionEl = document.getElementById('envApiVersion');
 const envEndpointEl = document.getElementById('envEndpoint');
 const envEndpointHostEl = document.getElementById('envEndpointHost');
 const envAuthModeEl = document.getElementById('envAuthMode');
 const envTenantEl = document.getElementById('envTenant');
+
+const uploadFormEl = document.getElementById('uploadForm');
+const uploadInputEl = document.getElementById('uploadInput');
+const uploadBtnEl = document.getElementById('uploadBtn');
+const uploadStatusEl = document.getElementById('uploadStatus');
+const knowledgeFormEl = document.getElementById('knowledgeForm');
+const knowledgeInputEl = document.getElementById('knowledgeInput');
+const knowledgeBtnEl = document.getElementById('knowledgeBtn');
+const knowledgeNoLlmEl = document.getElementById('knowledgeNoLlm');
+const knowledgeAnswerEl = document.getElementById('knowledgeAnswer');
+const knowledgeSourcesEl = document.getElementById('knowledgeSources');
+const uploadListEl = document.getElementById('uploadList');
+const uploadEmptyEl = document.getElementById('uploadEmpty');
 
 const STORAGE_CONVERSATION_KEY = 'codex.conversationId';
 
@@ -42,6 +58,9 @@ let historyPageSize = 10;
 let historyTotal = 0;
 let historyItems = [];
 let agentInfo = null;
+let knowledgeSources = [];
+let knowledgeAnswer = '';
+let uploadItems = [];
 
 function loadStoredConversationId() {
   try {
@@ -64,20 +83,39 @@ function saveConversationId(id) {
 
 function setActiveView(view) {
   const isChat = view === 'chat';
+  const isKnowledge = view === 'knowledge';
   const isStats = view === 'stats';
   const isEnv = view === 'env';
 
   if (viewChatEl) viewChatEl.hidden = !isChat;
+  if (viewKnowledgeEl) viewKnowledgeEl.hidden = !isKnowledge;
   if (viewStatsEl) viewStatsEl.hidden = !isStats;
   if (viewEnvEl) viewEnvEl.hidden = !isEnv;
 
   if (menuChatEl) menuChatEl.classList.toggle('sidebar__item--active', isChat);
+  if (menuKnowledgeEl) menuKnowledgeEl.classList.toggle('sidebar__item--active', isKnowledge);
   if (menuStatsEl) menuStatsEl.classList.toggle('sidebar__item--active', isStats);
   if (menuEnvEl) menuEnvEl.classList.toggle('sidebar__item--active', isEnv);
 }
 
 function fmt(v) {
   return typeof v === 'number' && Number.isFinite(v) ? String(v) : '-';
+}
+
+function fmtBytes(bytes) {
+  if (typeof bytes !== 'number' || !Number.isFinite(bytes)) return '-';
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb.toFixed(1)} KB`;
+  const mb = kb / 1024;
+  if (mb < 1024) return `${mb.toFixed(1)} MB`;
+  const gb = mb / 1024;
+  return `${gb.toFixed(1)} GB`;
+}
+
+function fmtChunkLengths(lengths) {
+  if (!Array.isArray(lengths) || lengths.length === 0) return '-';
+  return lengths.map((n) => (Number.isFinite(n) ? String(n) : '-')).join(', ');
 }
 
 function statsViewActive() {
@@ -104,6 +142,9 @@ function renderStats() {
       const turnEl = document.createElement('span');
       turnEl.textContent = fmt(item?.turn_index);
 
+      const modelEl = document.createElement('span');
+      modelEl.textContent = item?.model_name ? String(item.model_name) : '-';
+
       const inputEl = document.createElement('span');
       inputEl.textContent = fmt(item?.input_tokens);
 
@@ -117,6 +158,7 @@ function renderStats() {
       createdEl.textContent = item?.created_at ? String(item.created_at) : '-';
 
       row.appendChild(turnEl);
+      row.appendChild(modelEl);
       row.appendChild(inputEl);
       row.appendChild(outputEl);
       row.appendChild(totalEl);
@@ -190,6 +232,83 @@ function renderHistory() {
   historyNextEl.disabled = currentPage >= totalPages;
 }
 
+function renderKnowledge() {
+  if (knowledgeAnswerEl) {
+    knowledgeAnswerEl.textContent = knowledgeAnswer || '';
+  }
+  if (!knowledgeSourcesEl) return;
+  knowledgeSourcesEl.innerHTML = '';
+  if (!Array.isArray(knowledgeSources) || knowledgeSources.length === 0) return;
+
+  for (const [idx, src] of knowledgeSources.entries()) {
+    const card = document.createElement('div');
+    card.className = 'knowledge__source';
+
+    const meta = document.createElement('div');
+    meta.className = 'knowledge__source-meta';
+    const label = src?.source ? String(src.source) : 'unknown';
+    const distance = typeof src?.distance === 'number' ? src.distance.toFixed(3) : '-';
+    meta.textContent = `[${idx + 1}] 来源: ${label} / 距离: ${distance}`;
+
+    const text = document.createElement('div');
+    text.className = 'knowledge__source-text';
+    text.textContent = src?.text || '';
+
+    card.appendChild(meta);
+    card.appendChild(text);
+    knowledgeSourcesEl.appendChild(card);
+  }
+}
+
+function renderUploads() {
+  if (!uploadListEl || !uploadEmptyEl) return;
+  uploadListEl.innerHTML = '';
+  if (!Array.isArray(uploadItems) || uploadItems.length === 0) {
+    uploadEmptyEl.hidden = false;
+    return;
+  }
+  uploadEmptyEl.hidden = true;
+  for (const item of uploadItems) {
+    const row = document.createElement('div');
+    row.className = 'knowledge__list-row';
+
+    const nameEl = document.createElement('span');
+    nameEl.textContent = item?.original_name || item?.stored_name || '-';
+
+    const sizeEl = document.createElement('span');
+    sizeEl.textContent = fmtBytes(item?.size_bytes);
+
+    const timeEl = document.createElement('span');
+    timeEl.textContent = item?.uploaded_at ? String(item.uploaded_at) : '-';
+
+    const chunksEl = document.createElement('span');
+    chunksEl.textContent = fmt(item?.chunks_indexed);
+
+    const lengthsEl = document.createElement('span');
+    lengthsEl.textContent = fmtChunkLengths(item?.chunk_lengths);
+
+    row.appendChild(nameEl);
+    row.appendChild(sizeEl);
+    row.appendChild(timeEl);
+    row.appendChild(chunksEl);
+    row.appendChild(lengthsEl);
+    uploadListEl.appendChild(row);
+  }
+}
+
+async function loadUploads() {
+  try {
+    const res = await fetch('/api/knowledge/uploads');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    uploadItems = Array.isArray(data?.items) ? data.items : [];
+  } catch {
+    uploadItems = [];
+  } finally {
+    renderUploads();
+  }
+}
+
 async function loadHistoryPage(page) {
   const params = new URLSearchParams({
     page: String(page),
@@ -214,6 +333,7 @@ function setText(el, value) {
 
 function renderAgentInfo() {
   setText(envDeploymentEl, agentInfo?.deployment_name);
+  setText(envEmbeddingEl, agentInfo?.embedding_deployment_name);
   setText(envApiVersionEl, agentInfo?.api_version);
   setText(envEndpointEl, agentInfo?.endpoint);
   setText(envEndpointHostEl, agentInfo?.endpoint_host);
@@ -443,6 +563,11 @@ renderAgentInfo();
 loadAgentInfo();
 
 if (menuChatEl) menuChatEl.addEventListener('click', () => setActiveView('chat'));
+if (menuKnowledgeEl) menuKnowledgeEl.addEventListener('click', () => {
+  setActiveView('knowledge');
+  renderKnowledge();
+  loadUploads();
+});
 if (menuStatsEl) menuStatsEl.addEventListener('click', async () => {
   setActiveView('stats');
   usagePage = 1;
@@ -461,6 +586,65 @@ if (menuStatsEl) menuStatsEl.addEventListener('click', async () => {
 if (menuEnvEl) menuEnvEl.addEventListener('click', () => {
   setActiveView('env');
   renderAgentInfo();
+});
+
+if (uploadFormEl) uploadFormEl.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!uploadInputEl || !uploadInputEl.files || uploadInputEl.files.length === 0) {
+    uploadStatusEl.textContent = '请选择文件';
+    return;
+  }
+  const file = uploadInputEl.files[0];
+  uploadBtnEl.disabled = true;
+  uploadStatusEl.textContent = '上传中...';
+  try {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch('/api/knowledge/upload', { method: 'POST', body: form });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    uploadStatusEl.textContent = `已索引 ${data?.chunks_indexed ?? 0} 段；文件：${data?.file ?? ''}`;
+    loadUploads();
+  } catch (err) {
+    uploadStatusEl.textContent = `上传失败：${String(err)}`;
+  } finally {
+    uploadBtnEl.disabled = false;
+  }
+});
+
+if (knowledgeFormEl) knowledgeFormEl.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const question = (knowledgeInputEl?.value || '').trim();
+  if (!question) return;
+  knowledgeBtnEl.disabled = true;
+  knowledgeAnswer = '';
+  knowledgeSources = [];
+  renderKnowledge();
+  try {
+    const res = await fetch('/api/knowledge/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, use_llm: !(knowledgeNoLlmEl && knowledgeNoLlmEl.checked) }),
+    });
+    if (!res.ok) {
+      let detail = '';
+      try {
+        const data = await res.json();
+        detail = data?.detail ? `: ${data.detail}` : '';
+      } catch {
+        // ignore
+      }
+      throw new Error(`HTTP ${res.status}${detail}`);
+    }
+    const data = await res.json();
+    knowledgeAnswer = data?.answer || '';
+    knowledgeSources = Array.isArray(data?.sources) ? data.sources : [];
+  } catch (err) {
+    knowledgeAnswer = `查询失败：${String(err)}`;
+  } finally {
+    knowledgeBtnEl.disabled = false;
+    renderKnowledge();
+  }
 });
 
 if (statsPrevEl) statsPrevEl.addEventListener('click', async () => {

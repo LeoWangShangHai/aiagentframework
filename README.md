@@ -55,6 +55,15 @@ py -m uvicorn app.main:app --reload --app-dir c:\pythonproject\testpython\backen
 - 接口：`http://127.0.0.1:8000/api/health`
 - 接口：`http://127.0.0.1:8000/api/hello?name=World`
 
+### 知识库 / RAG (Chroma + Azure OpenAI Embedding)
+
+- 依赖：`AZURE_OPENAI_EMBEDDING_DEPLOYMENT_NAME`
+- API：
+  - `POST /api/knowledge/upload` (form-data `file`，支持 .txt/.md/.pdf)
+  - `POST /api/knowledge/query` `{ "question": "...", "top_k": 4 }`
+  - `GET /api/knowledge/stats`
+- 数据：`data/uploads/` 保存原文件；`data/chroma/` 为 Chroma 持久化
+
 ## 后端对接 microsoft/agent-framework（Python）
 
 本项目用的是该仓库的 Python 包：`agent-framework`（预发布版本通常需要 `--pre`）。

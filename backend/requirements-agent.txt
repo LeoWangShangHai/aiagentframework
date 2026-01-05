@@ -3,3 +3,6 @@ agent-framework
 azure-identity>=1.17
 python-dotenv>=1.0
 tiktoken>=0.7
+openai>=1.52
+chromadb>=0.5
+pypdf>=4.2

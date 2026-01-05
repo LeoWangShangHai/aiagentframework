@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Chat</title>
-    <link rel="stylesheet" href="/static/styles.css?v=4" />
+    <link rel="stylesheet" href="/static/styles.css?v=6" />
   </head>
   <body>
     <div class="layout">
@@ -13,6 +13,7 @@
 
         <nav class="sidebar__nav" aria-label="chat menu">
           <button id="menuChat" class="sidebar__item sidebar__item--active" type="button">对话</button>
+          <button id="menuKnowledge" class="sidebar__item" type="button">知识库</button>
           <button id="menuStats" class="sidebar__item" type="button">统计</button>
           <button id="menuEnv" class="sidebar__item" type="button">环境</button>
         </nav>
@@ -34,6 +35,53 @@
             </form>
           </section>
 
+          <section id="viewKnowledge" class="knowledge" aria-label="knowledge" hidden>
+            <div class="knowledge__title">知识库问答（Chroma + Azure OpenAI Embedding）</div>
+
+            <div class="knowledge__card">
+              <div class="knowledge__subtitle">上传并索引文件（支持 .txt / .md / .pdf）</div>
+              <form id="uploadForm" class="knowledge__upload" autocomplete="off">
+                <input id="uploadInput" type="file" accept=".txt,.md,.pdf" />
+                <button id="uploadBtn" type="submit">上传并索引</button>
+              </form>
+              <div id="uploadStatus" class="knowledge__status"></div>
+            </div>
+
+            <div class="knowledge__card">
+              <div class="knowledge__subtitle">向知识库提问</div>
+              <form id="knowledgeForm" class="knowledge__qa" autocomplete="off">
+                <textarea
+                  id="knowledgeInput"
+                  rows="3"
+                  placeholder="输入你的问题..."
+                  aria-label="knowledge question"
+                ></textarea>
+                <label class="knowledge__toggle">
+                  <input id="knowledgeNoLlm" type="checkbox" />
+                  仅检索
+                </label>
+                <button id="knowledgeBtn" type="submit">提问</button>
+              </form>
+              <div id="knowledgeAnswer" class="knowledge__answer"></div>
+              <div id="knowledgeSources" class="knowledge__sources"></div>
+            </div>
+
+            <div class="knowledge__card">
+              <div class="knowledge__subtitle">上传文件列表</div>
+              <div class="knowledge__list">
+                <div class="knowledge__list-header">
+                  <span>文件名</span>
+                  <span>大小</span>
+                  <span>上传时间</span>
+                  <span>片段数</span>
+                  <span>片段字符数</span>
+                </div>
+                <div id="uploadList" class="knowledge__list-body"></div>
+                <div id="uploadEmpty" class="knowledge__empty" hidden>暂无上传文件。</div>
+              </div>
+            </div>
+          </section>
+
           <section id="viewStats" class="stats" aria-label="stats" hidden>
             <div class="stats__title">Token Usage</div>
             <div class="stats__row"><span class="stats__label">conversation_id</span><span id="statsConversationId" class="stats__value">-</span></div>
@@ -52,6 +100,7 @@
             <div class="stats__list">
               <div class="stats__list-header">
                 <span>turn</span>
+                <span>model</span>
                 <span>input</span>
                 <span>output</span>
                 <span>total</span>
@@ -73,6 +122,7 @@
 
             <div class="env__subtitle">模型 / Azure</div>
             <div class="env__row"><span class="env__label">deployment_name</span><span id="envDeployment" class="env__value">-</span></div>
+            <div class="env__row"><span class="env__label">embedding_deployment</span><span id="envEmbedding" class="env__value">-</span></div>
             <div class="env__row"><span class="env__label">api_version</span><span id="envApiVersion" class="env__value">-</span></div>
             <div class="env__row"><span class="env__label">endpoint</span><span id="envEndpoint" class="env__value">-</span></div>
             <div class="env__row"><span class="env__label">endpoint_host</span><span id="envEndpointHost" class="env__value">-</span></div>
@@ -83,6 +133,6 @@
       </main>
     </div>
 
-    <script src="/static/app.js?v=4" defer></script>
+    <script src="/static/app.js?v=6" defer></script>
   </body>
 </html>

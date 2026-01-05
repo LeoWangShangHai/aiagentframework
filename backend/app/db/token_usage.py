@@ -32,6 +32,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             conversation_id TEXT NOT NULL,
             turn_index INTEGER NOT NULL,
+            model_name TEXT,
             input_tokens INTEGER NOT NULL,
             output_tokens INTEGER NOT NULL,
             total_tokens INTEGER NOT NULL,
@@ -39,6 +40,9 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
         )
         """
     )
+    columns = {row["name"] for row in conn.execute("PRAGMA table_info(conversation_turn_usage)").fetchall()}
+    if "model_name" not in columns:
+        conn.execute("ALTER TABLE conversation_turn_usage ADD COLUMN model_name TEXT")
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_ctu_conversation_turn ON conversation_turn_usage(conversation_id, turn_index)"
     )
@@ -49,6 +53,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
 class TurnUsageRow:
     conversation_id: str
     turn_index: int
+    model_name: str | None
     input_tokens: int
     output_tokens: int
     total_tokens: int
@@ -67,6 +72,7 @@ def record_turn_usage(
     conversation_id: str,
     turn_index: int,
     usage: dict[str, int],
+    model_name: str | None = None,
     *,
     db_path: str | None = None,
 ) -> None:
@@ -82,10 +88,10 @@ def record_turn_usage(
         conn.execute(
             """
             INSERT INTO conversation_turn_usage (
-                conversation_id, turn_index, input_tokens, output_tokens, total_tokens, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?)
+                conversation_id, turn_index, model_name, input_tokens, output_tokens, total_tokens, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (conversation_id, int(turn_index), input_tokens, output_tokens, total_tokens, created_at),
+            (conversation_id, int(turn_index), model_name, input_tokens, output_tokens, total_tokens, created_at),
         )
         conn.commit()
     finally:
@@ -162,7 +168,7 @@ def list_turn_usage(
         _ensure_schema(conn)
         rows = conn.execute(
             """
-            SELECT conversation_id, turn_index, input_tokens, output_tokens, total_tokens, created_at
+            SELECT conversation_id, turn_index, model_name, input_tokens, output_tokens, total_tokens, created_at
             FROM conversation_turn_usage
             WHERE conversation_id = ?
             ORDER BY turn_index ASC, id ASC
@@ -174,6 +180,7 @@ def list_turn_usage(
             TurnUsageRow(
                 conversation_id=str(r["conversation_id"]),
                 turn_index=int(r["turn_index"]),
+                model_name=str(r["model_name"]) if r["model_name"] is not None else None,
                 input_tokens=int(r["input_tokens"]),
                 output_tokens=int(r["output_tokens"]),
                 total_tokens=int(r["total_tokens"]),
@@ -197,7 +204,7 @@ def list_turn_usage_page(
         _ensure_schema(conn)
         rows = conn.execute(
             """
-            SELECT conversation_id, turn_index, input_tokens, output_tokens, total_tokens, created_at
+            SELECT conversation_id, turn_index, model_name, input_tokens, output_tokens, total_tokens, created_at
             FROM conversation_turn_usage
             WHERE conversation_id = ?
             ORDER BY turn_index ASC, id ASC
@@ -209,6 +216,7 @@ def list_turn_usage_page(
             TurnUsageRow(
                 conversation_id=str(r["conversation_id"]),
                 turn_index=int(r["turn_index"]),
+                model_name=str(r["model_name"]) if r["model_name"] is not None else None,
                 input_tokens=int(r["input_tokens"]),
                 output_tokens=int(r["output_tokens"]),
                 total_tokens=int(r["total_tokens"]),

@@ -12,6 +12,8 @@ config/azure_openai.env
 logs/*.err
 logs/*.out
 data/token_usage.sqlite3
+data/chroma/
+data/uploads/
 
 # OS / editor
 .DS_Store
